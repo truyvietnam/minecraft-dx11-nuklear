@@ -1,0 +1,1 @@
+target_sources(DirectXPlayground PRIVATE "nuklear_d3d11.h" "nuklear_d3d11_pixel_shader.h" "nuklear_d3d11_vertex_shader.h" "nuklear.h")
