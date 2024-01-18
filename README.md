@@ -6,7 +6,7 @@ It have broken mouse input and resize crash
 
 # Try to fix
 
-better mouse movement input
+better mouse motion input (because I am calling mouse input begin in back buffer is really shit when your fps is low so)
 
 fix resize crash
 
