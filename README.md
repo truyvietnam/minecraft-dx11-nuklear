@@ -2,13 +2,11 @@
 
 trolling minecraft dx11 fallback code with nuklear as gui
 
-It have broken mouse input and resize crash
+It have broken mouse input
 
 # Try to fix
 
 better mouse motion input (because I am calling mouse input begin in back buffer is really shit when your fps is low so)
-
-fix resize crash
 
 clean code
 

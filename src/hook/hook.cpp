@@ -5,14 +5,8 @@
 typedef HRESULT(__thiscall* present_t)(IDXGISwapChain*, UINT, UINT);
 present_t original_present;
 
-typedef HRESULT(__thiscall* resize_buffers_t)(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT);
-resize_buffers_t original_resize_buffers;
-
 typedef void(__thiscall* Mouse)(__int64 a1, char mouseButton, char isDown, __int16 mouseX, __int16 mouseY, __int16 relativeMovementX, __int16 relativeMovementY, char a8);
 Mouse _Mouse;
-
-using RenderFrame = void(__thiscall*)(void*, void*);
-RenderFrame _RenderFrame;
 
 // store the game's new D3D11 device here
 ID3D11Device* device;
@@ -24,10 +18,6 @@ IDXGISwapChain* g_pSwapChain = nullptr;
 struct nk_context* ctx;
 struct nk_colorf bg;
 
-void RenderFrameCallback(void* a1, void* a2){
-    _RenderFrame(a1, a2);
-}
-
 void mouseClickCallback(__int64 a1, char mouseButton, char isDown, __int16 mouseX, __int16 mouseY, __int16 relativeMovementX, __int16 relativeMovementY, char a8) {
     static int x;
     static int y;
@@ -38,7 +28,7 @@ void mouseClickCallback(__int64 a1, char mouseButton, char isDown, __int16 mouse
         nk_input_motion(ctx, x, y);
     }
 	switch (mouseButton) {
-		case 1:
+		case 1: //left click
             if (isDown)
             {
                 nk_input_begin(ctx);
@@ -52,14 +42,14 @@ void mouseClickCallback(__int64 a1, char mouseButton, char isDown, __int16 mouse
             }
             printf("mouse click\n");
 			break;
-		case 2:
-			//io.MouseDown[1] = isDown;
+		case 2: //right click
+			
 			break;
-		case 3:
-			//io.MouseDown[2] = isDown;
+		case 3: // middle click
+			
 			break;
-		case 4:
-			//io.MouseWheel = isDown < 0 ? -0.5f : 0.5f; //For scrolling
+		case 4: //scroll
+			
 			break;
 		default:
 			break;
@@ -105,19 +95,10 @@ HRESULT present_callback(IDXGISwapChain* swap_chain, UINT sync_interval, UINT fl
     }
 
     device->GetImmediateContext(&ppContext);
+    swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
     device->CreateRenderTargetView(pBackBuffer, NULL, &mainRenderTargetView);
-    swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<LPVOID*>(&pBackBuffer));
 
-    //nk_input_begin(ctx);
-
-    //MSG msg;
-	//	nk_input_begin(ctx);
-	//	while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE))
-	//	{
-	//		TranslateMessage(&msg);
-	//		DispatchMessageW(&msg);
-	//	}
-	//	nk_input_end(ctx);
+    ppContext->OMSetRenderTargets(1, &mainRenderTargetView, NULL);
 
     if (device)
     {    
@@ -130,12 +111,12 @@ HRESULT present_callback(IDXGISwapChain* swap_chain, UINT sync_interval, UINT fl
         if (nk_begin(ctx, "Show", nk_rect(100, 100, 220, 220),
         NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
         NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE)) {
-        /* fixed widget pixel width */
+
         nk_layout_row_static(ctx, 30, 80, 1);
-        if (nk_button_label(ctx, "button")) {
+        if (nk_button_label(ctx, "button")) { //button
             printf("button\n");
             }
-        nk_layout_row_begin(ctx, NK_STATIC, 30, 2);
+        nk_layout_row_begin(ctx, NK_STATIC, 30, 2); // slider
         {
             nk_layout_row_push(ctx, 50);
             nk_label(ctx, "Volume:", NK_TEXT_LEFT);
@@ -144,7 +125,7 @@ HRESULT present_callback(IDXGISwapChain* swap_chain, UINT sync_interval, UINT fl
         }
         nk_layout_row_end(ctx);
 
-        nk_layout_row_dynamic(ctx, 20, 1);
+        nk_layout_row_dynamic(ctx, 20, 1); //color picker
             nk_label(ctx, "background:", NK_TEXT_LEFT);
             nk_layout_row_dynamic(ctx, 25, 1);
             if (nk_combo_begin_color(ctx, nk_rgb_cf(bg), nk_vec2(nk_widget_width(ctx),400))) {
@@ -159,25 +140,17 @@ HRESULT present_callback(IDXGISwapChain* swap_chain, UINT sync_interval, UINT fl
             }
         }
         nk_end(ctx);
-        nk_input_begin(ctx);
-        ppContext->OMSetRenderTargets(1, &mainRenderTargetView, NULL);
+
+        nk_input_begin(ctx); //call in back buffer is bad
 
         nk_d3d11_render(ppContext, NK_ANTI_ALIASING_OFF);
+
         if (mainRenderTargetView) mainRenderTargetView->Release();
         ppContext->Release();
     }
     }
     }
     return original_present(swap_chain, sync_interval, flags);
-}
-
-HRESULT resize_buffers_callback(IDXGISwapChain* swap_chain, UINT buffer_count, UINT width, 
-                                UINT height, DXGI_FORMAT new_format, UINT swap_chain_flags) {
-    // reinitialize your renderer here
-    printf("IDXGISwapChain::ResizeBuffers() was called.\n");
-    nk_d3d11_resize(ppContext, width, height);
-    
-    return original_resize_buffers(swap_chain, buffer_count, width, height, new_format, swap_chain_flags);
 }
 
 void install_hook() {
@@ -189,19 +162,11 @@ void install_hook() {
                 printf("work2\n");
             }
         }
-    auto sig2 = Utils::findSig("48 89 ? ? ? 55 56 57 48 83 EC ? 8B F2 48 8B ? 48 8B");
-    if (sig2)
-        if (MH_CreateHook((void*)sig2, &RenderFrameCallback, reinterpret_cast<LPVOID*>(&_RenderFrame)) == MH_OK)
-        {
-            MH_EnableHook((void*)sig2);
-            printf("work3\n");
-        }
 
     // the game prefers using D3D12 over D3D11, so we'll try to hook in that same order
     if (kiero::init(kiero::RenderType::D3D12) == kiero::Status::Success) {
         // Present and ResizeBuffers live at indexes 140 and 145 respectively
         kiero::bind(140, (void**)&original_present, present_callback);
-        kiero::bind(145, (void**)&original_resize_buffers, resize_buffers_callback);
         printf("Hooked D3D12.\n");
         return;
     }
@@ -209,7 +174,6 @@ void install_hook() {
     if (kiero::init(kiero::RenderType::D3D11) == kiero::Status::Success) {
         // indexes are 8 and 13 for D3D11 instead
         kiero::bind(8, (void**)&original_present, present_callback);
-        kiero::bind(13, (void**)&original_resize_buffers, resize_buffers_callback);
         printf("Hooked D3D11.\n");
         return;
     }
